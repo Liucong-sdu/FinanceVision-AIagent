@@ -1,6 +1,6 @@
 __pycache__/
 data/
-fonts/
+temp_test_assets_for_video/
 generated_output/
 temp_assets/
 .env
