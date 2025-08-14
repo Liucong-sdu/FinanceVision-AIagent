@@ -94,8 +94,8 @@ def create_scene_image(image_prompt: str, overlay_text: str, output_filepath: st
         draw = ImageDraw.Draw(image)
 
         # a. 字体设置 (动态计算字体大小)
-        # 字体大小设为图片高度的 1/25 左右，可以根据需要调整
-        font_size = int(image.height / 25)
+        # 字体大小设为图片高度的 1/20 左右，可以根据需要调整
+        font_size = int(image.height / 20)
         try:
             font = ImageFont.truetype(font_path, font_size)
         except IOError:
@@ -107,26 +107,23 @@ def create_scene_image(image_prompt: str, overlay_text: str, output_filepath: st
         stroke_color = (0, 0, 0, 180)      # 黑色，半透明描边
         stroke_width = 2                   # 描边宽度
 
-        # c. 计算文字位置 (右下角)
-        margin = int(image.width / 30)  # 边距
-        # 使用 textbbox 获取精确的文本边界框
-        text_bbox = draw.textbbox((0, 0), overlay_text, font=font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        
-        position_x = image.width - text_width - margin
-        position_y = image.height - text_height - margin
-        position = (position_x, position_y)
+        # c. 【代码修改】计算文字位置 (居中)
+        # 直接将目标位置设置为图片的中心点
+        position = (image.width // 2, image.height // 2)
 
-        # d. 绘制带描边的文字
+        # d. 【代码修改】绘制带描边的文字
         logging.info(f"在图片上绘制文本: '{overlay_text}'")
+        # 使用 anchor='mm' 来确保文本的中心点与 position 对齐
+        # 使用 align='center' 来处理多行文本的内部居中对齐
         draw.text(
             position,
             overlay_text,
             font=font,
             fill=text_color,
             stroke_width=stroke_width,
-            stroke_fill=stroke_color
+            stroke_fill=stroke_color,
+            anchor="mm",
+            align="center"
         )
 
         # --- 5. 保存最终图片 ---
@@ -165,12 +162,11 @@ if __name__ == '__main__':
         os.makedirs("fonts")
 
     # 2. 检查字体文件
-    # 注意：请确保您在 'fonts' 目录下放置了一个名为 'simhei.ttf' 的中文字体文件。
-    # 您可以从Windows的 C:\Windows\Fonts 目录复制，或从网上下载。
-    test_font_path = "fonts/simhei.ttf" # 使用常见的黑体作为示例
+    # 注意：请确保您在 'fonts' 目录下放置了一个中文字体文件。
+    test_font_path = "fonts/SourceHanSansSC-Normal.otf" # 推荐使用思源黑体
     if not os.path.exists(test_font_path):
         print(f"\n[警告] 测试需要字体文件: '{test_font_path}'。")
-        print("请下载一个中文字体 (如黑体 simhei.ttf) 并放置在 'fonts' 目录下。")
+        print("请下载一个中文字体 (如思源黑体) 并放置在 'fonts' 目录下。")
         print("测试将跳过。")
     # 3. 检查API Key
     elif not os.environ.get("ARK_API_KEY"):
@@ -181,7 +177,7 @@ if __name__ == '__main__':
         # --- 定义测试参数 ---
         test_prompt = "一只可爱的橙色虎斑猫，坐在书房的窗台上，窗外是宁静的午后阳光，超高清细节，摄影风格"
         test_text = "场景一：午后的邂逅\n数据来源：模拟数据"
-        test_output = "temp_assets/test_scene_output.png"
+        test_output = "temp_assets/test_scene_output_centered.png" # 修改输出文件名以作区分
 
         print(f"\n测试参数:")
         print(f"  - 提示词: {test_prompt}")
@@ -206,4 +202,3 @@ if __name__ == '__main__':
             print("\n[失败] 测试未成功。请检查上面的错误日志以了解详情。")
             
     print("\n--- image_processor.py 模块测试结束 ---")
-
