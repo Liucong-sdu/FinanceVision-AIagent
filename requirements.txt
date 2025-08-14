@@ -1,0 +1,65 @@
+# 财经视频自动化生成项目依赖包
+# Python财经视频自动化流水线所需的第三方依赖包
+
+# ====== 核心依赖包 ======
+# 网络请求
+requests>=2.31.0
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# JSON数据处理 (Python内置，但明确版本)
+# json - Python内置模块
+
+# ====== 人工智能和机器学习 ======
+# OpenAI API客户端 (用于图像生成)
+openai>=1.0.0
+
+# Whisper本地语音识别和时间戳对齐
+stable-ts>=2.12.0
+
+# ====== 多媒体处理 ======
+# 图像处理
+Pillow>=10.0.0
+
+# 视频处理 (ffmpeg Python绑定)
+ffmpeg-python>=0.2.0
+
+# 音频处理
+pydub>=0.25.1
+
+# ====== 数据处理和科学计算 ======
+# 数值计算 (用于图像数组操作)
+numpy>=1.24.0
+
+# ====== 系统和工具 ======
+# 路径处理 (Python内置，3.4+)
+# pathlib - Python内置模块
+
+# 类型提示 (Python内置，3.5+)
+# typing - Python内置模块
+
+# 日志记录 (Python内置)
+# logging - Python内置模块
+
+# 命令行参数解析 (Python内置)
+# argparse - Python内置模块
+
+# ====== 开发和测试依赖 (可选) ======
+# 如果需要代码格式化和静态检查，可以取消下面的注释
+# flake8>=6.0.0
+# black>=23.0.0
+# mypy>=1.0.0
+
+# ====== 系统依赖说明 ======
+# 注意：本项目还需要以下系统依赖：
+# 1. FFmpeg - 必须安装在系统中并添加到PATH环境变量
+#    Windows: 从 https://ffmpeg.org/download.html 下载
+#    macOS: brew install ffmpeg
+#    Ubuntu: sudo apt-get install ffmpeg
+#
+# 2. 环境变量配置 - 需要在.env文件或系统环境变量中设置：
+#    - SILICONFLOW_API_KEY: SiliconFlow API密钥 (用于内容生成)
+#    - VOLCANO_APPID: 火山引擎TTS应用ID (用于语音合成)
+#    - VOLCANO_ACCESS_TOKEN: 火山引擎访问令牌 (用于语音合成)
+#    - ARK_API_KEY: 字节跳动ARK API密钥 (用于图像生成)
