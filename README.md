@@ -8,6 +8,15 @@
 4. 生成配套图像
 5. 自动剪辑成完整视频
 
+## 🎥 效果演示
+
+<video width="800" controls>
+  <source src="demo.mp4" type="video/mp4">
+  您的浏览器不支持HTML5视频播放，请 <a href="demo.mp4">点击此处下载观看</a>。
+</video>
+
+> 💡 **提示**: 如果视频无法播放，您可以直接 [**点击此处观看演示视频**](demo.mp4)
+
 ## 系统要求
 - Python 3.8+
 - FFmpeg (必须安装并添加到系统PATH)
