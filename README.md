@@ -1,5 +1,17 @@
-# 财经视频自动化生成项目 - 安装指南
+# 财经视频自动化生## 🎥 效果演示
 
+### 📺 项目演示视频
+展示从数据采集到视频生成的完整流程：
+
+
+https://github.com/user-attachments/assets/bdc5b0a2-8de0-46f5-98e0-00d4b5c3fdf7
+> 💡 **设置说明**: 
+> 1. 在GitHub仓库中创建一个新Issue
+> 2. 将demo.mp4拖拽到Issue评论框中上传
+> 3. 复制生成的GitHub链接（格式：`https://github.com/user-attachments/assets/xxxxx`）
+> 4. 将上方链接替换为实际的GitHub托管链接
+
+## 系统要求
 ## 项目概述
 这是一个自动化财经视频生成项目，能够：
 1. 爬取东方财富网的财经数据
@@ -8,14 +20,7 @@
 4. 生成配套图像
 5. 自动剪辑成完整视频
 
-## 🎥 效果演示
 
-<video width="800" controls>
-  <source src="demo.mp4" type="video/mp4">
-  您的浏览器不支持HTML5视频播放，请 <a href="demo.mp4">点击此处下载观看</a>。
-</video>
-
-> 💡 **提示**: 如果视频无法播放，您可以直接 [**点击此处观看演示视频**](demo.mp4)
 
 ## 系统要求
 - Python 3.8+
