@@ -5,11 +5,6 @@
 
 
 https://github.com/user-attachments/assets/bdc5b0a2-8de0-46f5-98e0-00d4b5c3fdf7
-> 💡 **设置说明**: 
-> 1. 在GitHub仓库中创建一个新Issue
-> 2. 将demo.mp4拖拽到Issue评论框中上传
-> 3. 复制生成的GitHub链接（格式：`https://github.com/user-attachments/assets/xxxxx`）
-> 4. 将上方链接替换为实际的GitHub托管链接
 
 ## 系统要求
 ## 项目概述
