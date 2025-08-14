@@ -1,0 +1,6 @@
+__pycache__/
+data/
+fonts/
+generated_output/
+temp_assets/
+.env
