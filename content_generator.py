@@ -55,7 +55,7 @@ def generate_content_plan(daily_data: Dict[str, Any]) -> Dict[str, List[Dict[str
                     "content": full_prompt
                 }
             ],
-            "max_tokens": 4096, # 增加max_tokens以容纳更复杂的JSON输出
+            "max_tokens": 160000, # 增加max_tokens以容纳更复杂的JSON输出
             "temperature": 0.7,
             "top_p": 0.7,
             "response_format": {"type": "json_object"} # 关键：强制模型输出JSON格式

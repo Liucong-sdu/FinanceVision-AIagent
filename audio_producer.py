@@ -1,158 +1,188 @@
 # coding=utf-8
-
-'''
-模块二：audio_producer.py (音频生产模块)
-核心任务: 接收完整的文稿，调用TTS API，生成一个音频文件和对应的句子时间戳数据。
-'''
-
-# requires Python 3.6 or later
-# pip install requests
+"""
+模块二：audio_producer.py (音频生产模块) - B方案：本地时间戳生成
+核心任务: 
+1. 接收文稿，调用TTS API，生成一个纯音频文件。
+2. 使用本地模型（Whisper）为音频和文稿生成精确的时间戳。
+"""
 import os
 import base64
 import json
 import uuid
 import requests
-from typing import Dict, List, Tuple
+import logging
+from typing import Dict, List, Tuple, Optional
+from dotenv import load_dotenv
 
-# --- API 配置 ---
-# 建议将这些敏感信息存储在环境变量或配置文件中，而不是硬编码在代码里。
-# 为了演示，我们遵循示例将其放在此处。
-APPID = "7243436737"
-ACCESS_TOKEN = "r72NGzrgibnXbuOTIdl2RaVIDiUMcQwo"
+load_dotenv() 
+# --- 初始化与配置 ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- 火山TTS API 配置 ---
+APPID = os.getenv("VOLCANO_APPID", "YOUR_APPID_HERE")
+ACCESS_TOKEN = os.getenv("VOLCANO_ACCESS_TOKEN", "YOUR_ACCESS_TOKEN_HERE")
 CLUSTER = "volcano_icl"
 HOST = "openspeech.bytedance.com"
 API_URL = f"https://{HOST}/api/v1/tts"
-# 选择一个音色，S_DNgMQKiB1 是一个不错的通用女声
 VOICE_TYPE = "S_DNgMQKiB1"
 
+# --- 本地时间戳生成器 (Whisper) ---
+# 使用一个全局变量来缓存模型，避免每次调用都重新加载
+whisper_model = None
 
-def generate_audio_and_timestamps(full_script: str, output_dir: str = "temp_assets") -> Tuple[str | None, List[Dict]]:
+def _initialize_whisper():
+    """惰性加载Whisper模型，只在第一次需要时加载。"""
+    global whisper_model
+    if whisper_model is None:
+        logging.info("正在初始化Whisper模型（首次运行需要下载模型文件）...")
+        try:
+            # stable-ts 重新导出了 whisper，所以可以直接从它导入
+            from stable_whisper import load_model
+            # 'base' 模型在速度和精度之间取得了很好的平衡，且占用资源较少。
+            # 如果需要更高精度，可以换成 'medium'。
+            whisper_model = load_model('base') 
+            logging.info("Whisper模型加载成功！")
+        except ImportError:
+            logging.error("无法导入 stable_whisper。请运行 'pip install stable-ts' 进行安装。")
+            raise
+        except Exception as e:
+            logging.error(f"加载Whisper模型时出错: {e}")
+            raise
+
+def generate_audio_only(full_script: str, output_dir: str) -> Optional[str]:
     """
-    根据文稿生成音频文件和时间戳。
-
+    【步骤一】仅调用TTS API生成音频文件。
+    
     Args:
         full_script (str): 拼接好的完整旁白文稿。
         output_dir (str): 用于存放生成音频文件的目录。
 
     Returns:
-        Tuple[str | None, List[Dict]]: 一个元组。
-                                第一个元素是生成的音频文件路径 (str)。
-                                第二个元素是时间戳列表 (List[Dict])。
-                                如果失败，则返回 (None, [])。
+        Optional[str]: 成功则返回生成的音频文件路径，否则返回None。
     """
-    print("开始生成音频和时间戳...")
+    logging.info("开始调用TTS API生成音频...")
     
-    # 1. 确保输出目录存在
-    try:
-        os.makedirs(output_dir, exist_ok=True)
-    except OSError as e:
-        print(f"创建目录失败: {output_dir}, 错误: {e}")
-        return None, []
-
-    # 2. 准备请求头和请求体
+    os.makedirs(output_dir, exist_ok=True)
+    
     header = {"Authorization": f"Bearer;{ACCESS_TOKEN}"}
-
     request_json = {
-        "app": {
-            "appid": APPID,
-            "token": "access_token",
-            "cluster": CLUSTER
-        },
-        "user": {
-            "uid": "388808087185088"
-        },
+        "app": {"appid": APPID, "token": "access_token", "cluster": CLUSTER},
+        "user": {"uid": "388808087185088"},
         "audio": {
-            "voice_type": VOICE_TYPE,
-            "encoding": "mp3",
-            "speed_ratio": 1.0,
-            "volume_ratio": 1.0,
-            "pitch_ratio": 1.0,
+            "voice_type": VOICE_TYPE, "encoding": "mp3", "speed_ratio": 1.0,
+            "volume_ratio": 1.0, "pitch_ratio": 1.0,
         },
         "request": {
-            "reqid": str(uuid.uuid4()),
-            "text": full_script,
-            "text_type": "plain",
-            "operation": "query",
-            "with_frontend": 1,
-            "frontend_type": "unitTson"
+            "reqid": str(uuid.uuid4()), "text": full_script, "text_type": "plain",
+            "operation": "query"
+            # 注意：我们不再需要请求时间戳，所以移除了 with_frontend 和 frontend_type
         }
     }
 
     try:
-        # 3. 发送POST请求
-        resp = requests.post(API_URL, data=json.dumps(request_json), headers=header)
-        
-        # 4. 检查HTTP响应状态
-        if resp.status_code != 200:
-            print(f"请求失败，HTTP状态码: {resp.status_code}, 响应: {resp.text}")
-            return None, []
-
+        resp = requests.post(API_URL, data=json.dumps(request_json), headers=header, timeout=60)
+        resp.raise_for_status() # 检查HTTP错误
         resp_json = resp.json()
 
-        # 5. 检查业务层面的错误码
-        # <--- 修改点 (MODIFICATION) ---
-        # 根据火山引擎文档，query操作的成功码是3000，而不是常见的0。
         if resp_json.get("code") != 3000:
-            print(f"API返回业务错误: code={resp_json.get('code')}, message='{resp_json.get('message')}'")
-            return None, []
+            logging.error(f"TTS API返回业务错误: code={resp_json.get('code')}, message='{resp_json.get('message')}'")
+            return None
 
-        # 6. 解析音频数据并保存
         if "data" in resp_json:
-            audio_base64 = resp_json["data"]
-            audio_bytes = base64.b64decode(audio_base64)
-            
+            audio_bytes = base64.b64decode(resp_json["data"])
             audio_filename = f"{uuid.uuid4()}.mp3"
             audio_filepath = os.path.join(output_dir, audio_filename)
             
             with open(audio_filepath, "wb") as f:
                 f.write(audio_bytes)
-            print(f"音频文件已成功保存到: {audio_filepath}")
+            logging.info(f"音频文件已成功保存到: {audio_filepath}")
+            return audio_filepath
         else:
-            print("错误：API响应中未找到 'data' 字段 (音频数据)。")
-            return None, []
-
-        # 7. 解析时间戳数据
-        timestamps = []
-        if "addition" in resp_json and "frontend" in resp_json["addition"] and "unitTson" in resp_json["addition"]["frontend"]:
-            raw_timestamps = resp_json["addition"]["frontend"]["unitTson"]
-            for item in raw_timestamps:
-                timestamps.append({
-                    "text": item.get("text"),
-                    "start": item.get("start_time"),
-                    "end": item.get("end_time")
-                })
-            print(f"成功解析了 {len(timestamps)} 条时间戳。")
-        else:
-            print("警告：API响应中未找到 'addition.frontend.unitTson' 字段 (时间戳数据)。")
-            return None, []
-
-        return audio_filepath, timestamps
+            logging.error("错误：TTS API响应中未找到 'data' 字段 (音频数据)。")
+            return None
 
     except requests.exceptions.RequestException as e:
-        print(f"网络请求异常: {e}")
-        return None, []
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
-        print(f"解析API响应时出错: {e}")
-        return None, []
+        logging.error(f"TTS网络请求异常: {e}")
+        return None
     except Exception as e:
-        print(f"发生未知错误: {e}")
-        return None, []
+        logging.error(f"生成音频时发生未知错误: {e}")
+        return None
 
+def generate_timestamps_from_audio(audio_path: str, original_script: str) -> List[Dict]:
+    """
+    【步骤二】使用本地Whisper模型为音频和文本生成词级别时间戳。
 
-# --- 测试代码 ---
+    Args:
+        audio_path (str): 音频文件的路径。
+        original_script (str): 用于生成音频的原始文稿。
+
+    Returns:
+        List[Dict]: 词级别时间戳列表，每个元素包含 'text', 'start', 'end'。
+                    失败则返回空列表。
+    """
+    logging.info(f"开始使用Whisper为音频生成时间戳: {audio_path}")
+    try:
+        _initialize_whisper() # 确保模型已加载
+        
+        # 使用 stable-ts 的 align 方法进行强制对齐
+        # language='zh' 明确指定语言为中文
+        result = whisper_model.align(audio_path, original_script, language='zh')
+        
+        timestamps = []
+        # result.segments 是一个生成器，包含所有词语的信息
+        for segment in result.segments:
+            for word in segment.words:
+                timestamps.append({
+                    "text": word.word.strip(),
+                    # stable-ts 的时间单位是秒，我们需要转换为毫秒以匹配之前的格式
+                    "start": int(word.start * 1000),
+                    "end": int(word.end * 1000)
+                })
+        
+        if not timestamps:
+            logging.warning("Whisper未能从音频中提取任何时间戳。")
+            return []
+            
+        logging.info(f"成功生成 {len(timestamps)} 条词级别时间戳。")
+        return timestamps
+
+    except Exception as e:
+        logging.error(f"使用Whisper生成时间戳时发生错误: {e}", exc_info=True)
+        return []
+
+# --- 模块独立测试入口 ---
 if __name__ == '__main__':
-    sample_script = "10亿用户App转向AI原生应用，大船如何掉头？高德最近打了个样，用AI重构底层技术栈，建立主-从Agent架构，将千问大模型与空间智能结合，展现出了新范式的强大威力，给用户带去了极大便利。一条最快的通勤路线，一份详细的全家旅游攻略……过去需要一系列操作，全网到处搜索需求，现在动动嘴，一句话就搞定了。出行和生活，有AI Agent加持以后，原来可以这么简单。"
+    print("\n--- audio_producer.py 模块测试 (方案B: 本地时间戳) ---")
     
-    audio_file, timestamp_data = generate_audio_and_timestamps(sample_script, output_dir="generated_output")
-
-    if audio_file and timestamp_data:
-        print("\n--- 函数调用成功 ---")
-        print(f"生成的音频文件路径: {audio_file}")
-        print("生成的时间戳数据:")
-        for i, ts in enumerate(timestamp_data[:5]):
-            print(f"  {i+1}: Text='{ts['text']}', Start={ts['start']}ms, End={ts['end']}ms")
-        if len(timestamp_data) > 5:
-            print(f"  ... (共 {len(timestamp_data)} 条)")
+    # 检查API凭证是否已配置
+    if "YOUR_APPID_HERE" in APPID or "YOUR_ACCESS_TOKEN_HERE" in ACCESS_TOKEN:
+        print("\n[警告] 请在脚本顶部或环境变量中配置您的火山引擎 APPID 和 ACCESS_TOKEN。")
+        print("测试将跳过。")
     else:
-        print("\n--- 函数调用失败 ---")
+        test_script = "今天A股市场整体表现有些低迷，三大指数齐齐下跌，不过科创50却像个不服输的少年，逆市上扬！"
+        test_output_dir = "temp_audio_test"
+
+        # 1. 测试音频生成
+        print("\n--- 1. 测试音频生成 ---")
+        audio_file = generate_audio_only(test_script, test_output_dir)
+
+        if audio_file:
+            print(f"\n[成功] 音频文件已生成: {audio_file}")
+
+            # 2. 测试时间戳生成
+            print("\n--- 2. 测试时间戳生成 ---")
+            timestamp_data = generate_timestamps_from_audio(audio_file, test_script)
+
+            if timestamp_data:
+                print("\n[成功] 时间戳已生成:")
+                for i, ts in enumerate(timestamp_data[:10]): # 显示前10个词
+                    print(f"  - 词: '{ts['text']}', 开始: {ts['start']}ms, 结束: {ts['end']}ms")
+                if len(timestamp_data) > 10:
+                    print(f"  ... (共 {len(timestamp_data)} 个词)")
+            else:
+                print("\n[失败] 时间戳生成失败，请检查上面的错误日志。")
+        else:
+            print("\n[失败] 音频生成失败，请检查上面的错误日志。")
+
+
 

@@ -4,3 +4,5 @@ temp_test_assets_for_video/
 generated_output/
 temp_assets/
 .env
+temp_audio_test/
+weekly_videos/
